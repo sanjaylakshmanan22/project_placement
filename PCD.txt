@@ -1,0 +1,378 @@
+import java.io.*;
+import java.util.Scanner;
+
+public class Tokenization {
+
+    private static final String[] keywords = { 
+        "auto", "break", "case", "char", "const", "continue", "default", "do",
+        "double", "else", "enum", "extern", "float", "for", "goto", "if",
+        "inline", "int", "long", "register", "restrict", "return", "short",
+        "signed", "sizeof", "static", "struct", "switch", "typedef", "union",
+        "unsigned", "void", "volatile", "while"
+    };
+
+    public static boolean isKeyword(String word) {
+        for (String keyword : keywords) {
+            if (word.equals(keyword)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static boolean isIdentifier(String word) {
+        if (Character.isLetter(word.charAt(0)) || word.charAt(0) == '_') {
+            for (int i = 1; i < word.length(); i++) {
+                if (!Character.isLetterOrDigit(word.charAt(i)) && word.charAt(i) != '_') {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
+    public static void classifyToken(String token) {
+        if (isKeyword(token)) {
+            System.out.println("Keyword: " + token);
+        } else if (isIdentifier(token)) {
+            System.out.println("Identifier: " + token);
+        } else if (Character.isDigit(token.charAt(0))) {
+            System.out.println("Number: " + token);
+        } else {
+            System.out.println("Operator/Symbol: " + token);
+        }
+    }
+
+    public static void tokenize(String input) {
+        StringBuilder token = new StringBuilder();
+
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+
+            if (Character.isLetterOrDigit(c) || c == '_') {
+                token.append(c);
+            } else {
+                if (token.length() > 0) {
+                    classifyToken(token.toString());
+                    token.setLength(0);
+                }
+                if (c != ' ' && c != '\n' && c != '\t') {
+                    System.out.println("Operator/Symbol: " + c);
+                }
+            }
+        }
+
+        if (token.length() > 0) {
+            classifyToken(token.toString());
+        }
+    }
+
+    public static String readFile(String filename) throws IOException {
+        StringBuilder content = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                content.append(line).append("\n");
+            }
+        }
+        return content.toString();
+    }
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+
+        System.out.print("Enter the path to the C program file: ");
+        String filePath = scanner.nextLine();
+
+        try {
+            String inputCode = readFile(filePath);
+            System.out.println("\nTokens in the input C program:");
+            tokenize(inputCode);
+        } catch (IOException e) {
+            System.err.println("An error occurred while reading the file: " + e.getMessage());
+        }
+
+        scanner.close();
+    }
+}
+
+
+
+
+
+
+import java.io.*;
+import java.util.*;
+import java.util.regex.*;
+
+class SymbolTable {
+    private Map<String, String> table;
+
+    public SymbolTable() {
+        table = new LinkedHashMap<>();
+    }
+
+    public void addSymbol(String name, String type) {
+        if (!table.containsKey(name)) {
+            table.put(name, type);
+        }
+    }
+
+    public void display() {
+        System.out.println("\nSymbol Table:");
+        System.out.println("+-----------------+-----------+");
+        System.out.printf("| %-15s | %-9s |\n", "Variable Name", "Data Type");
+        System.out.println("+-----------------+-----------+");
+        for (Map.Entry<String, String> entry : table.entrySet()) {
+            System.out.printf("| %-15s | %-9s |\n", entry.getKey(), entry.getValue());
+        }
+        System.out.println("+-----------------+-----------+");
+    }
+}
+
+public class SymbolTableGenerator {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        SymbolTable symbolTable = new SymbolTable();
+
+        System.out.print("Enter the file path of the C program: ");
+        String fileName = sc.nextLine();
+
+        String regex = "\\b(int|float|char|double)\\s+([a-zA-Z_][a-zA-Z0-9_]*)";
+        Pattern pattern = Pattern.compile(regex);
+
+        try (BufferedReader br = new BufferedReader(new FileReader(fileName))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                Matcher matcher = pattern.matcher(line);
+                while (matcher.find()) {
+                    String type = matcher.group(1);
+                    String name = matcher.group(2);
+                    symbolTable.addSymbol(name, type);
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Error reading file: " + e.getMessage());
+        }
+
+        symbolTable.display();
+        sc.close();
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+import java.util.*;
+
+class State {
+    String name;
+    Map<Character, List<State>> transitions = new HashMap<>();
+
+    public State(String name) {
+        this.name = name;
+    }
+
+    public void addTransition(char symbol, State state) {
+        transitions.computeIfAbsent(symbol, k -> new ArrayList<>()).add(state);
+    }
+}
+
+class NFA {
+    State startState;
+    Set<State> acceptStates;
+
+    public NFA(State startState, Set<State> acceptStates) {
+        this.startState = startState;
+        this.acceptStates = acceptStates;
+    }
+
+    public void display() {
+        System.out.println("\nNFA Transitions:");
+        System.out.println("+------------+--------+------------+");
+        System.out.printf("| %-10s | %-6s | %-10s |\n", "From State", "Symbol", "To State");
+        System.out.println("+------------+--------+------------+");
+
+        Set<State> visited = new HashSet<>();
+        Queue<State> queue = new LinkedList<>();
+        queue.add(startState);
+        visited.add(startState);
+
+        while (!queue.isEmpty()) {
+            State state = queue.poll();
+            for (Map.Entry<Character, List<State>> entry : state.transitions.entrySet()) {
+                for (State nextState : entry.getValue()) {
+                    System.out.printf("| %-10s | %-6s | %-10s |\n", state.name, 
+                        entry.getKey() == 'ε' ? "ε" : entry.getKey(), nextState.name);
+                    if (!visited.contains(nextState)) {
+                        queue.add(nextState);
+                        visited.add(nextState);
+                    }
+                }
+            }
+        }
+        System.out.println("+------------+--------+------------+");
+        System.out.println("\nStart State: " + startState.name);
+        System.out.print("Accept States: ");
+        for (State accept : acceptStates) {
+            System.out.print(accept.name + " ");
+        }
+        System.out.println("\n");
+    }
+}
+
+public class NFAConstructor {
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Enter the regular expression: ");
+        String regex = scanner.nextLine();
+        scanner.close();
+
+        // Implement NFA construction logic here
+        // For simplicity, the construction method is omitted
+
+        System.out.println("NFA construction logic is yet to be implemented.");
+    }
+}
+
+
+
+
+
+
+
+
+
+import java.util.*;
+
+class DFA {
+    static class State {
+        String name;
+        boolean isAccept;
+        Map<Character, State> transitions;
+
+        State(String name, boolean isAccept) {
+            this.name = name;
+            this.isAccept = isAccept;
+            this.transitions = new HashMap<>();
+        }
+
+        void addTransition(char symbol, State state) {
+            transitions.put(symbol, state);
+        }
+    }
+
+    private List<State> states;
+    private State startState;
+    private Set<Character> alphabet;
+
+    public DFA() {
+        states = new ArrayList<>();
+        alphabet = new HashSet<>();
+    }
+
+    public void addState(State state, boolean isStart) {
+        states.add(state);
+        if (isStart) {
+            startState = state;
+        }
+    }
+
+    public void addAlphabet(Set<Character> symbols) {
+        alphabet.addAll(symbols);
+    }
+
+    public void minimize() {
+        Set<Set<State>> partitions = new HashSet<>();
+        Set<State> acceptStates = new HashSet<>();
+        Set<State> nonAcceptStates = new HashSet<>();
+
+        for (State state : states) {
+            if (state.isAccept) acceptStates.add(state);
+            else nonAcceptStates.add(state);
+        }
+
+        if (!acceptStates.isEmpty()) partitions.add(acceptStates);
+        if (!nonAcceptStates.isEmpty()) partitions.add(nonAcceptStates);
+
+        boolean changed;
+        do {
+            changed = false;
+            Set<Set<State>> newPartitions = new HashSet<>();
+
+            for (Set<State> group : partitions) {
+                Map<Map<Character, Set<State>>, Set<State>> transitionGroups = new HashMap<>();
+
+                for (State state : group) {
+                    Map<Character, Set<State>> key = new HashMap<>();
+                    for (char symbol : alphabet) {
+                        State target = state.transitions.get(symbol);
+                        for (Set<State> partition : partitions) {
+                            if (partition.contains(target)) {
+                                key.put(symbol, partition);
+                                break;
+                            }
+                        }
+                    }
+                    transitionGroups.computeIfAbsent(key, k -> new HashSet<>()).add(state);
+                }
+
+                newPartitions.addAll(transitionGroups.values());
+                if (transitionGroups.values().size() > 1) changed = true;
+            }
+
+            partitions = newPartitions;
+        } while (changed);
+
+        System.out.println("\nMinimized DFA States:");
+        for (Set<State> group : partitions) {
+            System.out.print("{ ");
+            for (State state : group) {
+                System.out.print(state.name + " ");
+            }
+            System.out.println("}");
+        }
+    }
+}
+
+public class MinimizedDFA {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        System.out.print("Enter the regular expression: ");
+        String regex = sc.nextLine();
+
+        DFA dfa = new DFA();
+        Set<Character> alphabet = new HashSet<>();
+
+        DFA.State q0 = new DFA.State("q0", false);
+        DFA.State q1 = new DFA.State("q1", true);
+
+        dfa.addState(q0, true);
+        dfa.addState(q1, false);
+
+        for (char c : regex.toCharArray()) {
+            if (Character.isLetterOrDigit(c)) {
+                q0.addTransition(c, q1);
+                alphabet.add(c);
+            }
+        }
+
+        dfa.addAlphabet(alphabet);
+        dfa.minimize();
+        sc.close();
+    }
+}
+
+
+
+
+
+
